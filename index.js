@@ -1,7 +1,7 @@
 const express = require('express')
 const cors = require('cors')
 const dotenv = require('dotenv')
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
 // Load environment variables from .env file
 dotenv.config();
@@ -35,29 +35,44 @@ async function run() {
         const db = client.db('SafeShip')
         const parcelCollection = db.collection('parcels');
 
-        app.post('/parcels', async(req,res)=> {
-            try{
+        app.post('/parcels', async (req, res) => {
+            try {
                 const parcelData = req.body;
                 parcelData.createdAt = new Date();
 
                 const result = await parcelCollection.insertOne(parcelData)
                 res.send(result);
             }
-            catch(error) {
-                res.status(500).send({message:'Failed to create'})
+            catch (error) {
+                res.status(500).send({ message: 'Failed to create' })
             }
         })
 
-        app.get('/parcels', async(req,res)=> {
-            try{
-                const result = await parcelCollection.find().toArray();
-                res.send(result) 
+        // Get parcels by email
+        app.get('/parcels/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = { userEmail: email };
+            const options = {
+                sort: { createdAt: -1 }
             }
-            catch(error){
-                res.status(500).send({message:'failed to fetch'})
-            }
+            const result = await parcelCollection.find(query, options).toArray()
+            res.send(result)
         })
 
+        app.get('/parcel/:id', async(req,res)=> {
+            const id = req.params.id; // getting id from the url
+            const query = {_id: new ObjectId(id)} // converting the id into mongodb id
+            const result = await parcelCollection.findOne(query) // commanding the db to find the data matching with the query and save here
+            res.send(result) // sending the data to the client
+        })
+
+        // Delete a parcel
+        app.delete('/delete/:id', async (req, res) => {
+            const id = req.params.id; // Getting the parcel id from url
+            const query = { _id: new ObjectId(id) } // Converging into mongodb id
+            const result = await parcelCollection.deleteOne(query) // Commanding to delete the data matching with the query and saving the confirmation message here
+            res.send(result) // sending the confirmation message to the client
+        })
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
