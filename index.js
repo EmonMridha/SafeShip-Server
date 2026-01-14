@@ -59,9 +59,10 @@ async function run() {
             res.send(result)
         })
 
-        app.get('/parcel/:id', async(req,res)=> {
+        // Get parcel by id
+        app.get('/parcel/:id', async (req, res) => {
             const id = req.params.id; // getting id from the url
-            const query = {_id: new ObjectId(id)} // converting the id into mongodb id
+            const query = { _id: new ObjectId(id) } // converting the id into mongodb id
             const result = await parcelCollection.findOne(query) // commanding the db to find the data matching with the query and save here
             res.send(result) // sending the data to the client
         })
@@ -72,6 +73,21 @@ async function run() {
             const query = { _id: new ObjectId(id) } // Converging into mongodb id
             const result = await parcelCollection.deleteOne(query) // Commanding to delete the data matching with the query and saving the confirmation message here
             res.send(result) // sending the confirmation message to the client
+        })
+
+        app.post('/create-payment-intent', async (req, res) => {
+            try {
+                const paymentIntent = await stripe.paymentIntent.create({
+                    amount: 1000, // Amount in cents
+                    currency: 'usd',
+                    payment_method_types: ['card'],
+                })
+
+                res.json({ clientSecret: paymentIntent.client_secret })
+            }
+            catch (error) {
+                res.status(500).json({ error: error.message })
+            }
         })
 
         // Send a ping to confirm a successful connection
