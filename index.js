@@ -6,6 +6,8 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 // Load environment variables from .env file
 dotenv.config();
 
+const stripe = require('stripe')(process.env.PAYMENT_GATEWAY_KEY);
+
 const app = express();
 const port = process.env.PORT || 5000;
 
@@ -76,9 +78,13 @@ async function run() {
         })
 
         app.post('/create-payment-intent', async (req, res) => {
+
+            const amountInCents = req.body.amountInCents // Getting amount from the client
+
+            // Not my business. Part of stripe
             try {
-                const paymentIntent = await stripe.paymentIntent.create({
-                    amount: 1000, // Amount in cents
+                const paymentIntent = await stripe.paymentIntents.create({
+                    amount: amountInCents, // sending amount to stripe
                     currency: 'usd',
                     payment_method_types: ['card'],
                 })
@@ -88,6 +94,7 @@ async function run() {
             catch (error) {
                 res.status(500).json({ error: error.message })
             }
+
         })
 
         // Send a ping to confirm a successful connection
