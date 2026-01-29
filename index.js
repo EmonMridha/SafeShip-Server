@@ -70,6 +70,15 @@ async function run() {
             res.send(result) // sending the data to the client
         })
 
+        // Get payments by email
+        app.get('/payments/:email', async (req, res) => {
+            const email = req.params.email; // getting email from the url
+            const query = { email: email }; // creating query to find payments by email. Query is like roll number of a student 
+            const result = await paymentCollection.find(query).toArray()// commanding the db to find data matching with the query and save here
+            res.send(result) // sending the data to the client
+        })
+
+
         // Delete a parcel
         app.delete('/delete/:id', async (req, res) => {
             const id = req.params.id; // Getting the parcel id from url
@@ -90,8 +99,8 @@ async function run() {
                 ); // updating the doc matching with the parcelId 
 
                 if (updateResult.modifiedCount === 0) {
-                    return res.status(404).send({ message: 'Already paid' }); 
-                } 
+                    return res.status(404).send({ message: 'Already paid' });
+                }
 
                 // insert payment record
                 const paymentDoc = {
