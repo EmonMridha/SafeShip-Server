@@ -33,11 +33,13 @@ async function run() {
     try {
         // Connect the client to the server	(optional starting in v4.7)
         await client.connect();
-
         const db = client.db('SafeShip')
+
         const parcelCollection = db.collection('parcels');
         const paymentCollection = db.collection('payments');
+        const usersCollection = db.collection('users');
 
+        // Create a new parcel
         app.post('/parcels', async (req, res) => {
             try {
                 const parcelData = req.body; // getting parcel data from the client
@@ -48,6 +50,25 @@ async function run() {
             }
             catch (error) {
                 res.status(500).send({ message: 'Failed to create' })
+            }
+        })
+
+        // Create a new user
+        app.post('/users', async (req, res) => {
+            try {
+                const email = req.body.email; // Getting the user email from the request
+                const userExists = await usersCollection.findOne({ email })
+
+                if (userExists) {
+                    return res.status(200).send({ message: 'User already exists' })
+                }
+
+                const userInfo = req.body // Getting the user info from the request
+                const result = await usersCollection.insertOne(userInfo); // Commanding to store the data in MongoDB and saving the confirmation here
+                res.send(result); // Sending the confirmation message to the client
+            }
+            catch (error) {
+
             }
         })
 
