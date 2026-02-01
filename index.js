@@ -2,6 +2,7 @@ const express = require('express')
 const cors = require('cors')
 const dotenv = require('dotenv')
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const admin = require("firebase-admin");
 
 // Load environment variables from .env file
 dotenv.config();
@@ -15,6 +16,14 @@ const port = process.env.PORT || 5000;
 //Middleware
 app.use(cors());
 app.use(express.json());
+
+
+const serviceAccount = require("./firebaseAdminKey.json");
+
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+});
+
 
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.v9x5iie.mongodb.net/?appName=Cluster0`;
@@ -38,11 +47,39 @@ async function run() {
         const paymentCollection = db.collection('payments');
         const usersCollection = db.collection('users');
 
+
+        const verifyFBToken = async (req, res, next) => {
+
+            const authHeader = req.headers.authorization //Getting the auth header from the req
+            if (!authHeader) {
+                return res.status(401).send({ message: 'Unauthorized access' }) // Show in browser when search the api
+            }
+
+            const token = authHeader.split(' ')[1];
+
+            if (!token) {
+                return res.status(401).send({ message: 'unauthorized access' })
+            }
+
+            try {
+                const decoded = await admin.auth().verifyIdToken(token); // Checking the token and saving it's owner info 
+                req.decoded = decoded;
+                next();
+            }
+            catch (error) {
+                return res.status(403).send({ message: 'forbidden access' })
+            }
+
+        }
+
         // Create a new parcel
-        app.post('/parcels', async (req, res) => {
+        app.post('/parcels', verifyFBToken, async (req, res) => {
             try {
                 const parcelData = req.body; // getting parcel data from the client
                 parcelData.createdAt = new Date();
+                parcelData.userEmail = req.decoded.email,
+                    parcelData.paymentStatus = 'unpaid',
+                    parcelData.cost = 100
 
                 const result = await parcelCollection.insertOne(parcelData) // inserting parcel data in the database and saving the confirmation message here
                 res.send(result); // sending the confirmation message to the client
@@ -72,8 +109,8 @@ async function run() {
         })
 
         // Get parcels by email
-        app.get('/parcels/:email', async (req, res) => {
-            const email = req.params.email; // getting email from the url
+        app.get('/parcels', verifyFBToken, async (req, res) => {
+            const email = req.decoded.email; // getting email from the url
             const query = { userEmail: email }; // creating query to find parcels by email. Query is like roll number of a student
             const options = {
                 sort: { createdAt: -1 }
@@ -91,8 +128,8 @@ async function run() {
         })
 
         // Get payments by email
-        app.get('/payments/:email', async (req, res) => {
-            const email = req.params.email; // getting email from the url
+        app.get('/payments', verifyFBToken, async (req, res) => {
+            const email = req.decoded.email; // getting email from the url
             const query = { email: email }; // creating query to find payments by email. Query is like roll number of a student 
             const result = await paymentCollection.find(query).toArray()// commanding the db to find data matching with the query and save here
             res.send(result) // sending the data to the client
@@ -157,7 +194,6 @@ async function run() {
                 res.status(500).json({ error: error.message });
             }
         })
-
 
 
         // Send a ping to confirm a successful connection
